@@ -1,4 +1,5 @@
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
 import { useTradingContext } from '@/context/TradingContext';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -14,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,14 +29,16 @@ const navItems = [
 ];
 
 export const Layout = ({ children }: LayoutProps) => {
-  const { user, walletBalance, logout, getPortfolioValue } = useTradingContext();
+  const { profile } = useAuth();
+  const { walletBalance, getPortfolioValue, signOut } = useTradingContext();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await signOut();
+    toast.success('Logged out successfully');
+    navigate('/auth');
   };
 
   const portfolioValue = getPortfolioValue();
@@ -93,7 +97,7 @@ export const Layout = ({ children }: LayoutProps) => {
               {/* User Menu */}
               <div className="hidden md:flex items-center gap-3">
                 <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">{user?.username}</p>
+                  <p className="text-sm font-medium text-foreground">{profile?.username}</p>
                 </div>
                 <Button
                   variant="ghost"

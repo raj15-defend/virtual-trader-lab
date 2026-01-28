@@ -2,12 +2,21 @@ import { motion } from 'framer-motion';
 import { useTradingContext } from '@/context/TradingContext';
 import { Layout } from '@/components/layout/Layout';
 import { TradeHistory } from '@/components/trading/TradeHistory';
-import { format } from 'date-fns';
 import { History as HistoryIcon, ArrowDownCircle, ArrowUpCircle, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const History = () => {
-  const { trades, walletTransactions, walletBalance } = useTradingContext();
+  const { trades, walletBalance } = useTradingContext();
+
+  // Generate wallet transactions from trades
+  const walletTransactions = trades.map((trade, index) => ({
+    id: trade.id,
+    type: trade.type === 'BUY' ? ('DEBIT' as const) : ('CREDIT' as const),
+    amount: trade.total,
+    description: `${trade.type === 'BUY' ? 'Bought' : 'Sold'} ${trade.quantity} shares of ${trade.stockSymbol}`,
+    timestamp: trade.timestamp,
+    balance: walletBalance, // Simplified for display
+  }));
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -20,6 +29,16 @@ const History = () => {
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
+  };
+
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   return (
@@ -81,12 +100,12 @@ const History = () => {
                           <div className="flex items-start gap-3">
                             <div className={cn(
                               "rounded-full p-1.5",
-                              isCredit ? "bg-success/10" : "bg-destructive/10"
+                              isCredit ? "bg-profit/10" : "bg-loss/10"
                             )}>
                               {isCredit ? (
-                                <ArrowDownCircle className="h-4 w-4 text-success" />
+                                <ArrowDownCircle className="h-4 w-4 text-profit" />
                               ) : (
-                                <ArrowUpCircle className="h-4 w-4 text-destructive" />
+                                <ArrowUpCircle className="h-4 w-4 text-loss" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -94,7 +113,7 @@ const History = () => {
                                 {transaction.description}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                {format(new Date(transaction.timestamp), 'dd MMM yyyy, HH:mm')}
+                                {formatDate(transaction.timestamp)}
                               </p>
                             </div>
                             <div className="text-right">
@@ -103,9 +122,6 @@ const History = () => {
                                 isCredit ? "text-profit" : "text-loss"
                               )}>
                                 {isCredit ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </p>
-                              <p className="text-xs text-muted-foreground font-mono">
-                                Bal: ₹{transaction.balance.toLocaleString('en-IN')}
                               </p>
                             </div>
                           </div>

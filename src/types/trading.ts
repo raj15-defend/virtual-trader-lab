@@ -1,4 +1,5 @@
 export interface Stock {
+  id: string;
   symbol: string;
   name: string;
   price: number;
@@ -8,6 +9,24 @@ export interface Stock {
   low: number;
   volume: number;
   priceHistory: number[];
+  // Fundamentals
+  sector?: string;
+  marketCap?: number;
+  peRatio?: number;
+  eps?: number;
+  dividendYield?: number;
+  fiftyTwoWeekHigh?: number;
+  fiftyTwoWeekLow?: number;
+  description?: string;
+}
+
+export interface OHLCVData {
+  timestamp: Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 }
 
 export interface Trade {
@@ -55,4 +74,15 @@ export interface WalletTransaction {
   description: string;
   timestamp: Date;
   balance: number;
+}
+
+export interface MarketNews {
+  id: string;
+  title: string;
+  summary: string;
+  source: string;
+  url?: string;
+  stockSymbol?: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  publishedAt: Date;
 }

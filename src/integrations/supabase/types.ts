@@ -14,7 +14,266 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      holdings: {
+        Row: {
+          avg_buy_price: number
+          created_at: string
+          id: string
+          quantity: number
+          stock_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_buy_price?: number
+          created_at?: string
+          id?: string
+          quantity?: number
+          stock_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_buy_price?: number
+          created_at?: string
+          id?: string
+          quantity?: number
+          stock_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "holdings_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      market_news: {
+        Row: {
+          created_at: string
+          id: string
+          published_at: string
+          sentiment: string | null
+          source: string | null
+          stock_symbol: string | null
+          summary: string | null
+          title: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          published_at?: string
+          sentiment?: string | null
+          source?: string | null
+          stock_symbol?: string | null
+          summary?: string | null
+          title: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          published_at?: string
+          sentiment?: string | null
+          source?: string | null
+          stock_symbol?: string | null
+          summary?: string | null
+          title?: string
+          url?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string
+          wallet_balance: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          username: string
+          wallet_balance?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string
+          wallet_balance?: number
+        }
+        Relationships: []
+      }
+      stock_prices: {
+        Row: {
+          close_price: number
+          high_price: number
+          id: string
+          low_price: number
+          open_price: number
+          stock_id: string
+          timestamp: string
+          volume: number
+        }
+        Insert: {
+          close_price: number
+          high_price: number
+          id?: string
+          low_price: number
+          open_price: number
+          stock_id: string
+          timestamp?: string
+          volume?: number
+        }
+        Update: {
+          close_price?: number
+          high_price?: number
+          id?: string
+          low_price?: number
+          open_price?: number
+          stock_id?: string
+          timestamp?: string
+          volume?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_prices_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stocks: {
+        Row: {
+          created_at: string
+          description: string | null
+          dividend_yield: number | null
+          eps: number | null
+          fifty_two_week_high: number | null
+          fifty_two_week_low: number | null
+          id: string
+          market_cap: number | null
+          name: string
+          pe_ratio: number | null
+          sector: string | null
+          symbol: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          dividend_yield?: number | null
+          eps?: number | null
+          fifty_two_week_high?: number | null
+          fifty_two_week_low?: number | null
+          id?: string
+          market_cap?: number | null
+          name: string
+          pe_ratio?: number | null
+          sector?: string | null
+          symbol: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          dividend_yield?: number | null
+          eps?: number | null
+          fifty_two_week_high?: number | null
+          fifty_two_week_low?: number | null
+          id?: string
+          market_cap?: number | null
+          name?: string
+          pe_ratio?: number | null
+          sector?: string | null
+          symbol?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      trades: {
+        Row: {
+          created_at: string
+          id: string
+          price: number
+          quantity: number
+          stock_id: string
+          total: number
+          trade_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price: number
+          quantity: number
+          stock_id: string
+          total: number
+          trade_type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price?: number
+          quantity?: number
+          stock_id?: string
+          total?: number
+          trade_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trades_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watchlist: {
+        Row: {
+          created_at: string
+          id: string
+          stock_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          stock_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          stock_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watchlist_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stocks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
