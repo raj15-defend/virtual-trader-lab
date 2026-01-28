@@ -6,7 +6,7 @@ import { PortfolioTable } from '@/components/trading/PortfolioTable';
 import { PriceChart } from '@/components/trading/PriceChart';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Wallet, TrendingUp, TrendingDown, Briefcase, PieChart } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Briefcase, PieChart, Loader2 } from 'lucide-react';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -14,6 +14,7 @@ const Portfolio = () => {
   const { 
     walletBalance, 
     holdings, 
+    stocksLoading,
     getPortfolioValue, 
     getTotalProfitLoss 
   } = useTradingContext();
@@ -67,9 +68,10 @@ const Portfolio = () => {
         borderColor: 'hsl(222, 30%, 18%)',
         borderWidth: 1,
         callbacks: {
-          label: (context: any) => {
-            const value = context.raw;
-            const percentage = ((value / portfolioValue) * 100).toFixed(1);
+          label: (context: unknown) => {
+            const ctx = context as { raw: number };
+            const value = ctx.raw;
+            const percentage = portfolioValue > 0 ? ((value / portfolioValue) * 100).toFixed(1) : 0;
             return `₹${value.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${percentage}%)`;
           },
         },
@@ -97,6 +99,16 @@ const Portfolio = () => {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
   };
+
+  if (stocksLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-[60vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

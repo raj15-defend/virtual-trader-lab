@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { TrendingUp, TrendingDown, Minus, Plus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Plus, Loader2 } from 'lucide-react';
 
 interface TradingPanelProps {
   stock: Stock | null;
@@ -15,6 +15,7 @@ interface TradingPanelProps {
 export const TradingPanel = ({ stock }: TradingPanelProps) => {
   const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
   const [quantity, setQuantity] = useState(1);
+  const [loading, setLoading] = useState(false);
   const { buyStock, sellStock, walletBalance, holdings } = useTradingContext();
 
   if (!stock) {
@@ -33,21 +34,28 @@ export const TradingPanel = ({ stock }: TradingPanelProps) => {
   const maxSellQuantity = holding?.quantity || 0;
   const isPositive = stock.change >= 0;
 
-  const handleTrade = () => {
+  const handleTrade = async () => {
     if (quantity <= 0) {
       toast.error('Please enter a valid quantity');
       return;
     }
 
-    const result = tradeType === 'BUY' 
-      ? buyStock(stock.symbol, quantity) 
-      : sellStock(stock.symbol, quantity);
+    setLoading(true);
+    try {
+      const result = tradeType === 'BUY' 
+        ? await buyStock(stock.symbol, quantity) 
+        : await sellStock(stock.symbol, quantity);
 
-    if (result.success) {
-      toast.success(result.message);
-      setQuantity(1);
-    } else {
-      toast.error(result.message);
+      if (result.success) {
+        toast.success(result.message);
+        setQuantity(1);
+      } else {
+        toast.error(result.message);
+      }
+    } catch {
+      toast.error('Failed to execute trade');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -197,6 +205,7 @@ export const TradingPanel = ({ stock }: TradingPanelProps) => {
         <Button
           onClick={handleTrade}
           disabled={
+            loading ||
             (tradeType === 'BUY' && totalValue > walletBalance) ||
             (tradeType === 'SELL' && quantity > maxSellQuantity)
           }
@@ -207,7 +216,14 @@ export const TradingPanel = ({ stock }: TradingPanelProps) => {
               : "bg-destructive hover:bg-destructive/90 text-destructive-foreground"
           )}
         >
-          {tradeType === 'BUY' ? 'Place Buy Order' : 'Place Sell Order'}
+          {loading ? (
+            <>
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              Processing...
+            </>
+          ) : (
+            tradeType === 'BUY' ? 'Place Buy Order' : 'Place Sell Order'
+          )}
         </Button>
 
         {/* Balance Warning */}

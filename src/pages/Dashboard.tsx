@@ -5,21 +5,24 @@ import { StatCard } from '@/components/trading/StatCard';
 import { StockTicker } from '@/components/trading/StockTicker';
 import { PortfolioTable } from '@/components/trading/PortfolioTable';
 import { PriceChart } from '@/components/trading/PriceChart';
+import { MarketNewsFeed } from '@/components/trading/MarketNewsFeed';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Wallet, TrendingUp, TrendingDown, Briefcase, ArrowRight } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, Briefcase, ArrowRight, Newspaper, Loader2 } from 'lucide-react';
 
 const Dashboard = () => {
   const { 
     user, 
-    stocks, 
+    stocks,
+    stocksLoading,
     walletBalance, 
     holdings, 
     getPortfolioValue, 
     getTotalProfitLoss,
-    trades 
+    trades,
+    news,
+    newsLoading
   } = useTradingContext();
-
   const portfolioValue = getPortfolioValue();
   const totalProfitLoss = getTotalProfitLoss();
   const totalValue = walletBalance + portfolioValue;
