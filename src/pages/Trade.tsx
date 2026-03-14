@@ -7,6 +7,7 @@ import { TradingPanel } from '@/components/trading/TradingPanel';
 import { CandlestickChart } from '@/components/trading/CandlestickChart';
 import { StockFundamentals } from '@/components/trading/StockFundamentals';
 import { MarketNewsFeed } from '@/components/trading/MarketNewsFeed';
+import { AIPredictionPanel } from '@/components/trading/AIPredictionPanel';
 import { Stock } from '@/types/trading';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
