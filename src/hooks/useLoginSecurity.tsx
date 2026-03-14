@@ -7,12 +7,12 @@ const LOCKOUT_MINUTES = 15;
 export const useLoginSecurity = () => {
   const recordAttempt = useCallback(async (email: string, success: boolean) => {
     try {
-      await supabase.from('login_attempts').insert({
+      await supabase.from('login_attempts' as any).insert({
         email,
         success,
         ip_address: 'browser-client',
         user_agent: navigator.userAgent.slice(0, 200),
-      });
+      } as any);
     } catch (e) {
       console.error('Failed to record login attempt:', e);
     }
