@@ -37,7 +37,7 @@ export const useActivityLog = () => {
       .order('created_at', { ascending: false })
       .limit(50);
     
-    setLogs((data as ActivityLog[]) || []);
+    setLogs((data as unknown as ActivityLog[]) || []);
     setLoading(false);
   }, [user]);
 
