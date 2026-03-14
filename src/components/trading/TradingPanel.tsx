@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Stock } from '@/types/trading';
 import { useTradingContext } from '@/context/TradingContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
+import { useFraudDetection } from '@/hooks/useFraudDetection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { TrendingUp, TrendingDown, Minus, Plus, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Plus, Loader2, ShieldAlert } from 'lucide-react';
 
 interface TradingPanelProps {
   stock: Stock | null;
@@ -17,6 +19,8 @@ export const TradingPanel = ({ stock }: TradingPanelProps) => {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const { buyStock, sellStock, walletBalance, holdings } = useTradingContext();
+  const { logActivity } = useActivityLog();
+  const { checkForFraud } = useFraudDetection();
 
   if (!stock) {
     return (
@@ -49,6 +53,22 @@ export const TradingPanel = ({ stock }: TradingPanelProps) => {
       if (result.success) {
         toast.success(result.message);
         setQuantity(1);
+        
+        // Log activity
+        await logActivity(tradeType.toLowerCase(), {
+          stock: stock.symbol,
+          quantity,
+          price: stock.price,
+          total: stock.price * quantity,
+        });
+
+        // Check for fraud
+        const isFraud = await checkForFraud(tradeType, stock.price * quantity, stock.symbol);
+        if (isFraud) {
+          toast.warning('Security alert: This trade was flagged for review.', {
+            icon: <ShieldAlert className="h-4 w-4" />,
+          });
+        }
       } else {
         toast.error(result.message);
       }

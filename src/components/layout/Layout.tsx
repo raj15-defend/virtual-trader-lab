@@ -12,7 +12,8 @@ import {
   Wallet, 
   LogOut,
   Menu,
-  X
+  X,
+  Shield
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/trade', label: 'Trade', icon: LineChart },
   { path: '/portfolio', label: 'Portfolio', icon: Briefcase },
   { path: '/history', label: 'History', icon: History },
+  { path: '/security', label: 'Security', icon: Shield },
 ];
 
 export const Layout = ({ children }: LayoutProps) => {

@@ -7,6 +7,7 @@ import { TradingPanel } from '@/components/trading/TradingPanel';
 import { CandlestickChart } from '@/components/trading/CandlestickChart';
 import { StockFundamentals } from '@/components/trading/StockFundamentals';
 import { MarketNewsFeed } from '@/components/trading/MarketNewsFeed';
+import { AIPredictionPanel } from '@/components/trading/AIPredictionPanel';
 import { Stock } from '@/types/trading';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -164,37 +165,42 @@ const Trade = () => {
                   )}
                 </div>
 
-                {/* Tabs for Fundamentals and News */}
+                {/* Tabs for Fundamentals, News, and AI */}
                 <div className="grid gap-4 lg:grid-cols-2">
-                  <Tabs defaultValue="fundamentals" className="rounded-xl border border-border bg-card">
-                    <TabsList className="w-full border-b border-border rounded-none bg-transparent p-0">
-                      <TabsTrigger
-                        value="fundamentals"
-                        className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-                      >
-                        <Info className="h-4 w-4 mr-2" />
-                        Fundamentals
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="news"
-                        className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
-                      >
-                        <Newspaper className="h-4 w-4 mr-2" />
-                        News
-                      </TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="fundamentals" className="p-4">
-                      <StockFundamentals stock={selectedStock} />
-                    </TabsContent>
-                    <TabsContent value="news" className="p-4">
-                      <MarketNewsFeed
-                        news={getNewsByStock(selectedStock.symbol)}
-                        loading={newsLoading}
-                        compact
-                        stockFilter={selectedStock.symbol}
-                      />
-                    </TabsContent>
-                  </Tabs>
+                  <div className="space-y-4">
+                    <Tabs defaultValue="fundamentals" className="rounded-xl border border-border bg-card">
+                      <TabsList className="w-full border-b border-border rounded-none bg-transparent p-0">
+                        <TabsTrigger
+                          value="fundamentals"
+                          className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                        >
+                          <Info className="h-4 w-4 mr-2" />
+                          Fundamentals
+                        </TabsTrigger>
+                        <TabsTrigger
+                          value="news"
+                          className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                        >
+                          <Newspaper className="h-4 w-4 mr-2" />
+                          News
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="fundamentals" className="p-4">
+                        <StockFundamentals stock={selectedStock} />
+                      </TabsContent>
+                      <TabsContent value="news" className="p-4">
+                        <MarketNewsFeed
+                          news={getNewsByStock(selectedStock.symbol)}
+                          loading={newsLoading}
+                          compact
+                          stockFilter={selectedStock.symbol}
+                        />
+                      </TabsContent>
+                    </Tabs>
+
+                    {/* AI Prediction Panel */}
+                    <AIPredictionPanel stock={selectedStock} />
+                  </div>
 
                   {/* Trading Panel */}
                   <TradingPanel stock={selectedStock} />

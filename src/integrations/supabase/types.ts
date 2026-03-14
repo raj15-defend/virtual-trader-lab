@@ -14,6 +14,96 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: Json | null
+          id: string
+          ip_address: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          ip_address?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_predictions: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          expires_at: string
+          id: string
+          prediction_data: Json
+          prediction_type: string
+          recommendation: string | null
+          stock_symbol: string
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          prediction_data?: Json
+          prediction_type: string
+          recommendation?: string | null
+          stock_symbol: string
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          prediction_data?: Json
+          prediction_type?: string
+          recommendation?: string | null
+          stock_symbol?: string
+        }
+        Relationships: []
+      }
+      fraud_alerts: {
+        Row: {
+          alert_type: string
+          created_at: string
+          description: string
+          id: string
+          resolved: boolean
+          severity: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string
+          description: string
+          id?: string
+          resolved?: boolean
+          severity?: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          resolved?: boolean
+          severity?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       holdings: {
         Row: {
           avg_buy_price: number
@@ -51,6 +141,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      login_attempts: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          ip_address: string | null
+          success: boolean
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          ip_address?: string | null
+          success?: boolean
+          user_agent?: string | null
+        }
+        Relationships: []
       }
       market_news: {
         Row: {
