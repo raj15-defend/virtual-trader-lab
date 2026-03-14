@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Stock } from '@/types/trading';
 import { useTradingContext } from '@/context/TradingContext';
+import { useActivityLog } from '@/hooks/useActivityLog';
+import { useFraudDetection } from '@/hooks/useFraudDetection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { TrendingUp, TrendingDown, Minus, Plus, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Plus, Loader2, ShieldAlert } from 'lucide-react';
 
 interface TradingPanelProps {
   stock: Stock | null;
