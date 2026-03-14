@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { useLoginSecurity } from '@/hooks/useLoginSecurity';
+import { useActivityLog } from '@/hooks/useActivityLog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { TrendingUp, Mail, Lock, User, Loader2 } from 'lucide-react';
+import { TrendingUp, Mail, Lock, User, Loader2, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -17,9 +19,14 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading: authLoading, signIn, signUp } = useAuth();
+  const { recordAttempt, checkLockout } = useLoginSecurity();
+  const { logActivity } = useActivityLog();
   
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [lockoutInfo, setLockoutInfo] = useState<{ locked: boolean; remainingMinutes: number; failedAttempts: number }>({
+    locked: false, remainingMinutes: 0, failedAttempts: 0,
+  });
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -27,7 +34,6 @@ const Auth = () => {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (user && !authLoading) {
       const from = (location.state as { from?: string })?.from || '/dashboard';
@@ -37,41 +43,35 @@ const Auth = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
-    try {
-      emailSchema.parse(formData.email);
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        newErrors.email = e.errors[0].message;
-      }
+    try { emailSchema.parse(formData.email); } catch (e) {
+      if (e instanceof z.ZodError) newErrors.email = e.errors[0].message;
     }
-
-    try {
-      passwordSchema.parse(formData.password);
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        newErrors.password = e.errors[0].message;
-      }
+    try { passwordSchema.parse(formData.password); } catch (e) {
+      if (e instanceof z.ZodError) newErrors.password = e.errors[0].message;
     }
-
     if (!isLogin) {
-      try {
-        usernameSchema.parse(formData.username);
-      } catch (e) {
-        if (e instanceof z.ZodError) {
-          newErrors.username = e.errors[0].message;
-        }
+      try { usernameSchema.parse(formData.username); } catch (e) {
+        if (e instanceof z.ZodError) newErrors.username = e.errors[0].message;
       }
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
+
+    // Check lockout before attempting login
+    if (isLogin) {
+      const lockout = await checkLockout(formData.email);
+      if (lockout.locked) {
+        setLockoutInfo(lockout);
+        toast.error(`Account temporarily locked. Try again in ${lockout.remainingMinutes} minutes.`);
+        return;
+      }
+      setLockoutInfo(lockout);
+    }
 
     setLoading(true);
 
@@ -79,12 +79,20 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signIn(formData.email, formData.password);
         if (error) {
-          if (error.message.includes('Invalid login credentials')) {
-            toast.error('Invalid email or password');
+          await recordAttempt(formData.email, false);
+          const lockout = await checkLockout(formData.email);
+          setLockoutInfo(lockout);
+          
+          if (lockout.locked) {
+            toast.error(`Too many failed attempts. Account locked for ${lockout.remainingMinutes} minutes.`);
+          } else if (error.message.includes('Invalid login credentials')) {
+            toast.error(`Invalid email or password. ${5 - lockout.failedAttempts} attempts remaining.`);
           } else {
             toast.error(error.message);
           }
         } else {
+          await recordAttempt(formData.email, true);
+          await logActivity('login', { method: 'email' });
           toast.success('Welcome back!');
           navigate('/dashboard');
         }
@@ -130,6 +138,37 @@ const Auth = () => {
           </div>
           <span className="text-2xl font-bold text-foreground">TradeSim</span>
         </div>
+
+        {/* Lockout Warning */}
+        {lockoutInfo.locked && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 flex items-start gap-3"
+          >
+            <ShieldAlert className="h-5 w-5 text-destructive mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-destructive">Account Temporarily Locked</p>
+              <p className="text-xs text-destructive/80">
+                Too many failed login attempts. Please try again in {lockoutInfo.remainingMinutes} minutes.
+              </p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Failed attempts warning */}
+        {!lockoutInfo.locked && lockoutInfo.failedAttempts > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 flex items-center gap-2"
+          >
+            <ShieldAlert className="h-4 w-4 text-warning" />
+            <p className="text-xs text-warning">
+              {lockoutInfo.failedAttempts} failed attempt(s). Account locks after 5 failures.
+            </p>
+          </motion.div>
+        )}
 
         {/* Form Card */}
         <div className="rounded-xl border border-border bg-card p-8">
@@ -199,7 +238,7 @@ const Auth = () => {
               )}
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || lockoutInfo.locked}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -217,6 +256,7 @@ const Auth = () => {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setErrors({});
+                setLockoutInfo({ locked: false, remainingMinutes: 0, failedAttempts: 0 });
               }}
               className="text-sm text-primary hover:underline"
             >
@@ -227,8 +267,17 @@ const Auth = () => {
           </div>
         </div>
 
-        {/* Demo Info */}
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        {/* Security Features */}
+        <div className="mt-4 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Lock className="h-3 w-3" /> Encrypted
+          </span>
+          <span className="flex items-center gap-1">
+            <ShieldAlert className="h-3 w-3" /> Brute-force Protection
+          </span>
+        </div>
+
+        <p className="mt-4 text-center text-sm text-muted-foreground">
           This is a simulation platform. No real money is involved.
         </p>
       </motion.div>

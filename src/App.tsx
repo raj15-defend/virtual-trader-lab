@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Trade from "./pages/Trade";
 import Portfolio from "./pages/Portfolio";
 import History from "./pages/History";
+import Security from "./pages/Security";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -58,6 +59,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <History />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/security"
+              element={
+                <ProtectedRoute>
+                  <Security />
                 </ProtectedRoute>
               }
             />
