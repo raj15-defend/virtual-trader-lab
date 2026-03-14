@@ -35,15 +35,17 @@ export const useLoginSecurity = () => {
 
       if (!data) return { locked: false, remainingMinutes: 0, failedAttempts: 0 };
 
+      const attempts = data as unknown as { success: boolean; created_at: string }[];
+
       // Count consecutive failures (stop at first success)
       let failedAttempts = 0;
-      for (const attempt of data) {
+      for (const attempt of attempts) {
         if (attempt.success) break;
         failedAttempts++;
       }
 
       if (failedAttempts >= MAX_ATTEMPTS) {
-        const lastAttempt = new Date(data[0].created_at);
+        const lastAttempt = new Date(attempts[0].created_at);
         const unlockTime = new Date(lastAttempt.getTime() + LOCKOUT_MINUTES * 60 * 1000);
         const remaining = Math.ceil((unlockTime.getTime() - Date.now()) / 60000);
         
