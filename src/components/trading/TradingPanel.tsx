@@ -19,6 +19,8 @@ export const TradingPanel = ({ stock }: TradingPanelProps) => {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(false);
   const { buyStock, sellStock, walletBalance, holdings } = useTradingContext();
+  const { logActivity } = useActivityLog();
+  const { checkForFraud } = useFraudDetection();
 
   if (!stock) {
     return (
