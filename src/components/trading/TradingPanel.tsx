@@ -53,6 +53,22 @@ export const TradingPanel = ({ stock }: TradingPanelProps) => {
       if (result.success) {
         toast.success(result.message);
         setQuantity(1);
+        
+        // Log activity
+        await logActivity(tradeType.toLowerCase(), {
+          stock: stock.symbol,
+          quantity,
+          price: stock.price,
+          total: stock.price * quantity,
+        });
+
+        // Check for fraud
+        const isFraud = await checkForFraud(tradeType, stock.price * quantity, stock.symbol);
+        if (isFraud) {
+          toast.warning('Security alert: This trade was flagged for review.', {
+            icon: <ShieldAlert className="h-4 w-4" />,
+          });
+        }
       } else {
         toast.error(result.message);
       }
