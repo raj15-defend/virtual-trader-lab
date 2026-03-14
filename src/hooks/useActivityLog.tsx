@@ -31,7 +31,7 @@ export const useActivityLog = () => {
     if (!user) return;
     setLoading(true);
     const { data } = await supabase
-      .from('activity_logs')
+      .from('activity_logs' as any)
       .select('id, action, details, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
