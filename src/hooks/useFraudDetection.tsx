@@ -52,12 +52,12 @@ export const useFraudDetection = () => {
 
     // Insert fraud alerts
     for (const check of fraudChecks) {
-      await supabase.from('fraud_alerts').insert({
+      await supabase.from('fraud_alerts' as any).insert({
         user_id: user.id,
         alert_type: check.type,
         severity: check.severity,
         description: check.description,
-      });
+      } as any);
     }
 
     if (fraudChecks.length > 0) {
