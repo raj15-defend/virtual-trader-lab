@@ -27,7 +27,7 @@ export const useLoginSecurity = () => {
       const cutoff = new Date(Date.now() - LOCKOUT_MINUTES * 60 * 1000).toISOString();
       
       const { data } = await supabase
-        .from('login_attempts')
+        .from('login_attempts' as any)
         .select('success, created_at')
         .eq('email', email)
         .gte('created_at', cutoff)

@@ -71,13 +71,13 @@ export const useFraudDetection = () => {
     if (!user) return;
     setLoading(true);
     const { data } = await supabase
-      .from('fraud_alerts')
+      .from('fraud_alerts' as any)
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(20);
 
-    setAlerts((data as FraudAlert[]) || []);
+    setAlerts((data as unknown as FraudAlert[]) || []);
     setLoading(false);
   }, [user]);
 
