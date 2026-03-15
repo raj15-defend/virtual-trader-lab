@@ -13,6 +13,7 @@ import Portfolio from "./pages/Portfolio";
 import History from "./pages/History";
 import Security from "./pages/Security";
 import Markets from "./pages/Markets";
+import StockDetail from "./pages/StockDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
