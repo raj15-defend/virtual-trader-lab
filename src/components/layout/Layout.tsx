@@ -25,6 +25,7 @@ interface LayoutProps {
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/markets', label: 'Markets', icon: Building2 },
   { path: '/trade', label: 'Trade', icon: LineChart },
   { path: '/portfolio', label: 'Portfolio', icon: Briefcase },
   { path: '/history', label: 'History', icon: History },
