@@ -13,7 +13,8 @@ import {
   LogOut,
   Menu,
   X,
-  Shield
+  Shield,
+  Building2
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -24,6 +25,7 @@ interface LayoutProps {
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/markets', label: 'Markets', icon: Building2 },
   { path: '/trade', label: 'Trade', icon: LineChart },
   { path: '/portfolio', label: 'Portfolio', icon: Briefcase },
   { path: '/history', label: 'History', icon: History },

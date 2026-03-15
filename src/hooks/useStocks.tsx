@@ -172,14 +172,32 @@ export const useStocks = () => {
 // Helper functions
 function getBasePrice(symbol: string): number {
   const prices: Record<string, number> = {
-    'RELIANCE': 2456.75,
-    'TCS': 3678.90,
-    'INFY': 1542.30,
-    'HDFC': 1678.45,
-    'ICICI': 1023.60,
-    'WIPRO': 456.80,
-    'TATASTEEL': 142.35,
-    'BHARTIARTL': 1234.50,
+    // IT
+    'TCS': 3678.90, 'INFY': 1542.30, 'WIPRO': 456.80, 'HCLTECH': 1280.50, 'TECHM': 1480.25,
+    // Banking
+    'HDFC': 1678.45, 'ICICI': 1023.60, 'SBIN': 612.35, 'AXISBANK': 1095.40, 'KOTAKBANK': 1855.70,
+    'INDUSINDBK': 1345.20, 'BANKBARODA': 263.80,
+    // Energy
+    'RELIANCE': 2456.75, 'ONGC': 262.50, 'IOC': 146.30, 'BPCL': 343.60, 'ADANIGAS': 722.40,
+    // Automobile
+    'TATAMOTORS': 725.30, 'MARUTI': 11920.50, 'M&M': 1632.80, 'BAJAJ-AUTO': 8545.20,
+    'HEROMOTOCO': 4295.60, 'EICHERMOT': 4025.30,
+    // FMCG
+    'HINDUNILVR': 2345.80, 'ITC': 452.30, 'NESTLEIND': 2340.50, 'BRITANNIA': 5245.70,
+    'DABUR': 548.20, 'GODREJCP': 1285.40,
+    // Pharma
+    'SUNPHARMA': 1665.30, 'DRREDDY': 6305.80, 'CIPLA': 1265.40, 'DIVISLAB': 3565.20,
+    'APOLLOHOSP': 6145.30,
+    // Infrastructure
+    'LT': 3385.60, 'ADANIENT': 2745.30, 'ADANIPORTS': 1265.80, 'GMRINFRA': 72.35,
+    // Telecom
+    'BHARTIARTL': 1234.50, 'IDEA': 13.45,
+    // Metals
+    'TATASTEEL': 142.35, 'JSWSTEEL': 845.20, 'HINDALCO': 595.30, 'COALINDIA': 442.60,
+    // Retail
+    'DMART': 3985.40, 'TRENT': 2645.80,
+    // Other
+    'ASIANPAINT': 2895.30, 'ULTRACEMCO': 10245.60, 'POWERGRID': 305.40, 'NTPC': 352.80,
   };
   return prices[symbol] || 1000;
 }
