@@ -14,10 +14,12 @@ import {
   Menu,
   X,
   Shield,
-  Building2
+  Building2,
+  ShieldCheck
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { NotificationBell } from './NotificationBell';
 
 interface LayoutProps {
   children: React.ReactNode;
