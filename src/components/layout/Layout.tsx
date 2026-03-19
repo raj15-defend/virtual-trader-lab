@@ -14,10 +14,12 @@ import {
   Menu,
   X,
   Shield,
-  Building2
+  Building2,
+  ShieldCheck
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { NotificationBell } from './NotificationBell';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -28,8 +30,10 @@ const navItems = [
   { path: '/markets', label: 'Markets', icon: Building2 },
   { path: '/trade', label: 'Trade', icon: LineChart },
   { path: '/portfolio', label: 'Portfolio', icon: Briefcase },
+  { path: '/wallet', label: 'Wallet', icon: Wallet },
   { path: '/history', label: 'History', icon: History },
   { path: '/security', label: 'Security', icon: Shield },
+  { path: '/admin', label: 'Admin', icon: ShieldCheck },
 ];
 
 export const Layout = ({ children }: LayoutProps) => {
@@ -86,7 +90,8 @@ export const Layout = ({ children }: LayoutProps) => {
             </nav>
 
             {/* Right Section */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <NotificationBell />
               {/* Wallet Balance */}
               <div className="hidden sm:flex items-center gap-3 rounded-lg bg-muted px-4 py-2">
                 <Wallet className="h-4 w-4 text-primary" />
