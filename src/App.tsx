@@ -14,6 +14,8 @@ import History from "./pages/History";
 import Security from "./pages/Security";
 import Markets from "./pages/Markets";
 import StockDetail from "./pages/StockDetail";
+import WalletPage from "./pages/Wallet";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
