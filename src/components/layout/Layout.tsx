@@ -90,7 +90,8 @@ export const Layout = ({ children }: LayoutProps) => {
             </nav>
 
             {/* Right Section */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <NotificationBell />
               {/* Wallet Balance */}
               <div className="hidden sm:flex items-center gap-3 rounded-lg bg-muted px-4 py-2">
                 <Wallet className="h-4 w-4 text-primary" />
