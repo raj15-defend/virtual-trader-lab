@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Wallet as WalletIcon, Plus, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle, XCircle, CreditCard, Smartphone, Building2, TrendingUp, TrendingDown, IndianRupee } from 'lucide-react';
+import { Wallet as WalletIcon, Plus, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle, XCircle, CreditCard, Smartphone, Building2, TrendingUp, TrendingDown, IndianRupee, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -12,8 +13,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWallet } from '@/hooks/useWallet';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -42,12 +45,47 @@ export default function Wallet() {
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   // Withdrawal form
   const [wdAmount, setWdAmount] = useState('');
   const [wdMethod, setWdMethod] = useState('upi');
   const [wdUpiId, setWdUpiId] = useState('');
   const [wdAccountNo, setWdAccountNo] = useState('');
   const [wdIfsc, setWdIfsc] = useState('');
+
+  // Handle Stripe payment return
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    const paymentAmount = searchParams.get('amount');
+    if (paymentStatus === 'success' && paymentAmount) {
+      const amt = parseFloat(paymentAmount);
+      addFunds(amt, 'Stripe (Card)').then(() => {
+        toast.success(`₹${amt.toLocaleString('en-IN')} added via Stripe!`);
+      });
+      setSearchParams({}, { replace: true });
+    } else if (paymentStatus === 'cancelled') {
+      toast.error('Payment was cancelled');
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
+
+  const handleStripePayment = async () => {
+    if (!amount) return;
+    setProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-wallet-payment', {
+        body: { amount: parseFloat(amount) },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initiate payment');
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const handleAddFunds = async () => {
     if (!amount || !selectedMethod) return;
@@ -240,7 +278,20 @@ export default function Wallet() {
               disabled={!amount || !selectedMethod || processing}
               onClick={handleAddFunds}
             >
-              {processing ? 'Processing...' : `Add ₹${amount ? parseFloat(amount).toLocaleString('en-IN') : '0'}`}
+              {processing ? 'Processing...' : `Add ₹${amount ? parseFloat(amount).toLocaleString('en-IN') : '0'} (Simulated)`}
+            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+              <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or pay with</span></div>
+            </div>
+            <Button
+              variant="outline"
+              className="w-full gap-2 border-primary/30 hover:bg-primary/5"
+              disabled={!amount || processing}
+              onClick={handleStripePayment}
+            >
+              <Zap className="h-4 w-4 text-primary" />
+              {processing ? 'Redirecting to Stripe...' : `Pay ₹${amount ? parseFloat(amount).toLocaleString('en-IN') : '0'} with Stripe`}
             </Button>
           </div>
         </DialogContent>
