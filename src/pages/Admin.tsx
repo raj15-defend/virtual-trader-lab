@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Shield, CheckCircle, XCircle, Clock, Users, AlertTriangle, IndianRupee, ArrowUpFromLine, RefreshCw } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, Clock, Users, AlertTriangle, IndianRupee, ArrowUpFromLine, RefreshCw, BarChart3, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,23 +11,69 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Textarea } from '@/components/ui/textarea';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useFraudDetection } from '@/hooks/useFraudDetection';
-import { format } from 'date-fns';
+import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
+import { useMemo } from 'react';
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
 };
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
+  hidden: { opacity: 0, y: 16, filter: 'blur(4px)' },
+  visible: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.5, ease: [0.16, 1, 0.3, 1] } },
 };
+
+const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', 'hsl(142 71% 45%)', 'hsl(var(--warning, 38 92% 50%))'];
 
 export default function Admin() {
   const { isAdmin, loading, withdrawalRequests, allTransactions, approveWithdrawal, rejectWithdrawal, refreshData } = useAdmin();
   const { alerts: fraudAlerts } = useFraudDetection();
   const [reviewDialog, setReviewDialog] = useState<{ open: boolean; id: string; action: 'approve' | 'reject' }>({ open: false, id: '', action: 'approve' });
   const [adminNotes, setAdminNotes] = useState('');
+
+  // Analytics data
+  const monthlyData = useMemo(() => {
+    const months: { name: string; deposits: number; withdrawals: number; trades: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = subMonths(new Date(), i);
+      const start = startOfMonth(monthDate);
+      const end = endOfMonth(monthDate);
+      const monthName = format(monthDate, 'MMM yyyy');
+
+      const monthTxns = allTransactions.filter(t => {
+        try {
+          return isWithinInterval(new Date(t.created_at), { start, end });
+        } catch { return false; }
+      });
+
+      months.push({
+        name: monthName,
+        deposits: monthTxns.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0),
+        withdrawals: monthTxns.filter(t => t.type === 'withdrawal').reduce((s, t) => s + t.amount, 0),
+        trades: monthTxns.filter(t => t.type === 'trade_buy' || t.type === 'trade_sell').reduce((s, t) => s + t.amount, 0),
+      });
+    }
+    return months;
+  }, [allTransactions]);
+
+  const typeDistribution = useMemo(() => {
+    const types: Record<string, number> = {};
+    allTransactions.forEach(t => {
+      const label = t.type === 'deposit' ? 'Deposits' : t.type === 'withdrawal' ? 'Withdrawals' : t.type === 'trade_buy' ? 'Buy Trades' : t.type === 'trade_sell' ? 'Sell Trades' : 'Other';
+      types[label] = (types[label] || 0) + t.amount;
+    });
+    return Object.entries(types).map(([name, value]) => ({ name, value }));
+  }, [allTransactions]);
+
+  const cumulativeRevenue = useMemo(() => {
+    let running = 0;
+    return monthlyData.map(m => {
+      running += m.deposits - m.withdrawals;
+      return { name: m.name, revenue: running };
+    });
+  }, [monthlyData]);
 
   if (loading) {
     return (
@@ -54,6 +100,8 @@ export default function Admin() {
   const pendingWithdrawals = withdrawalRequests.filter(r => r.status === 'pending');
   const totalPendingAmount = pendingWithdrawals.reduce((s, r) => s + r.amount, 0);
   const totalTransactionVolume = allTransactions.reduce((s, t) => s + t.amount, 0);
+  const totalDeposits = allTransactions.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0);
+  const totalWithdrawals = allTransactions.filter(t => t.type === 'withdrawal').reduce((s, t) => s + t.amount, 0);
 
   const handleReview = async () => {
     if (reviewDialog.action === 'approve') {
@@ -80,6 +128,8 @@ export default function Admin() {
     );
   };
 
+  const formatCurrency = (val: number) => `₹${val >= 100000 ? `${(val / 100000).toFixed(1)}L` : val.toLocaleString('en-IN')}`;
+
   return (
     <Layout>
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6 p-4 md:p-6">
@@ -96,40 +146,121 @@ export default function Admin() {
         </motion.div>
 
         {/* Stats */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Clock className="h-4 w-4" /> Pending Withdrawals
-              </div>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm"><Clock className="h-4 w-4" /> Pending</div>
               <p className="text-2xl font-bold text-warning mt-1">{pendingWithdrawals.length}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <IndianRupee className="h-4 w-4" /> Pending Amount
-              </div>
-              <p className="text-2xl font-bold text-foreground mt-1">₹{totalPendingAmount.toLocaleString('en-IN')}</p>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm"><IndianRupee className="h-4 w-4" /> Pending Amt</div>
+              <p className="text-2xl font-bold text-foreground mt-1">{formatCurrency(totalPendingAmount)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <Users className="h-4 w-4" /> Total Transactions
-              </div>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm"><TrendingUp className="h-4 w-4" /> Total Deposits</div>
+              <p className="text-2xl font-bold text-success mt-1">{formatCurrency(totalDeposits)}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground text-sm"><Users className="h-4 w-4" /> Transactions</div>
               <p className="text-2xl font-bold text-foreground mt-1">{allTransactions.length}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                <AlertTriangle className="h-4 w-4" /> Fraud Alerts
-              </div>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm"><AlertTriangle className="h-4 w-4" /> Fraud Alerts</div>
               <p className="text-2xl font-bold text-destructive mt-1">{fraudAlerts.length}</p>
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Analytics Charts */}
+        <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Monthly Deposits vs Withdrawals</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={monthlyData} barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={formatCurrency} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }}
+                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, undefined]}
+                  />
+                  <Bar dataKey="deposits" name="Deposits" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="withdrawals" name="Withdrawals" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="trades" name="Trades" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Net Revenue Trend</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={cumulativeRevenue}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickFormatter={formatCurrency} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: 12 }}
+                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
+                  />
+                  <defs>
+                    <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fill="url(#revenueGradient)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Transaction Type Distribution */}
+        {typeDistribution.length > 0 && (
+          <motion.div variants={itemVariants}>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Transaction Type Distribution</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[250px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={typeDistribution}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {typeDistribution.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, undefined]} />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Main Content */}
         <motion.div variants={itemVariants}>
@@ -147,9 +278,7 @@ export default function Admin() {
 
             <TabsContent value="withdrawals">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Withdrawal Requests</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg">Withdrawal Requests</CardTitle></CardHeader>
                 <ScrollArea className="max-h-[500px]">
                   {withdrawalRequests.length === 0 ? (
                     <CardContent className="text-center text-muted-foreground p-8">No withdrawal requests</CardContent>
@@ -171,20 +300,10 @@ export default function Admin() {
                             <span className="font-mono font-bold text-foreground">₹{req.amount.toLocaleString('en-IN')}</span>
                             {req.status === 'pending' && (
                               <div className="flex gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  className="h-8 gap-1"
-                                  onClick={() => setReviewDialog({ open: true, id: req.id, action: 'approve' })}
-                                >
+                                <Button size="sm" variant="default" className="h-8 gap-1" onClick={() => setReviewDialog({ open: true, id: req.id, action: 'approve' })}>
                                   <CheckCircle className="h-3 w-3" /> Approve
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="h-8 gap-1"
-                                  onClick={() => setReviewDialog({ open: true, id: req.id, action: 'reject' })}
-                                >
+                                <Button size="sm" variant="destructive" className="h-8 gap-1" onClick={() => setReviewDialog({ open: true, id: req.id, action: 'reject' })}>
                                   <XCircle className="h-3 w-3" /> Reject
                                 </Button>
                               </div>
@@ -200,9 +319,7 @@ export default function Admin() {
 
             <TabsContent value="transactions">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">All User Transactions</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg">All User Transactions</CardTitle></CardHeader>
                 <ScrollArea className="max-h-[500px]">
                   {allTransactions.length === 0 ? (
                     <CardContent className="text-center text-muted-foreground p-8">No transactions</CardContent>
@@ -217,10 +334,7 @@ export default function Admin() {
                           </div>
                           <div className="flex items-center gap-3">
                             {getStatusBadge(txn.status)}
-                            <span className={cn(
-                              "font-mono font-semibold text-sm",
-                              txn.type === 'deposit' ? 'text-success' : 'text-destructive'
-                            )}>
+                            <span className={cn("font-mono font-semibold text-sm", txn.type === 'deposit' ? 'text-success' : 'text-destructive')}>
                               ₹{txn.amount.toLocaleString('en-IN')}
                             </span>
                           </div>
@@ -234,9 +348,7 @@ export default function Admin() {
 
             <TabsContent value="fraud">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Fraud Alerts</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg">Fraud Alerts</CardTitle></CardHeader>
                 <ScrollArea className="max-h-[500px]">
                   {fraudAlerts.length === 0 ? (
                     <CardContent className="text-center text-muted-foreground p-8">No fraud alerts</CardContent>
@@ -245,19 +357,14 @@ export default function Admin() {
                       {fraudAlerts.map(alert => (
                         <div key={alert.id} className="flex items-center justify-between p-4 hover:bg-muted/20 transition-colors">
                           <div className="flex items-center gap-3">
-                            <AlertTriangle className={cn(
-                              "h-5 w-5",
-                              alert.severity === 'high' ? 'text-destructive' : alert.severity === 'medium' ? 'text-warning' : 'text-muted-foreground'
-                            )} />
+                            <AlertTriangle className={cn("h-5 w-5", alert.severity === 'high' ? 'text-destructive' : alert.severity === 'medium' ? 'text-warning' : 'text-muted-foreground')} />
                             <div>
                               <p className="text-sm font-medium text-foreground">{alert.alert_type}</p>
                               <p className="text-xs text-muted-foreground">{alert.description}</p>
                               <p className="text-xs text-muted-foreground">{format(new Date(alert.created_at), 'dd MMM yyyy, HH:mm')}</p>
                             </div>
                           </div>
-                          <Badge variant={alert.severity === 'high' ? 'destructive' : 'secondary'}>
-                            {alert.severity}
-                          </Badge>
+                          <Badge variant={alert.severity === 'high' ? 'destructive' : 'secondary'}>{alert.severity}</Badge>
                         </div>
                       ))}
                     </div>
@@ -277,16 +384,8 @@ export default function Admin() {
             <DialogDescription>Add optional notes for this decision</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <Textarea
-              placeholder="Admin notes (optional)"
-              value={adminNotes}
-              onChange={(e) => setAdminNotes(e.target.value)}
-            />
-            <Button
-              className="w-full"
-              variant={reviewDialog.action === 'approve' ? 'default' : 'destructive'}
-              onClick={handleReview}
-            >
+            <Textarea placeholder="Admin notes (optional)" value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} />
+            <Button className="w-full" variant={reviewDialog.action === 'approve' ? 'default' : 'destructive'} onClick={handleReview}>
               {reviewDialog.action === 'approve' ? 'Confirm Approval' : 'Confirm Rejection'}
             </Button>
           </div>
