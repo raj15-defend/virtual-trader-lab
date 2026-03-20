@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Wallet as WalletIcon, Plus, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle, XCircle, CreditCard, Smartphone, Building2, TrendingUp, TrendingDown, IndianRupee } from 'lucide-react';
+import { Wallet as WalletIcon, Plus, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle, XCircle, CreditCard, Smartphone, Building2, TrendingUp, TrendingDown, IndianRupee, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -12,8 +13,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useWallet } from '@/hooks/useWallet';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const containerVariants = {
   hidden: { opacity: 0 },
