@@ -45,12 +45,47 @@ export default function Wallet() {
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
   // Withdrawal form
   const [wdAmount, setWdAmount] = useState('');
   const [wdMethod, setWdMethod] = useState('upi');
   const [wdUpiId, setWdUpiId] = useState('');
   const [wdAccountNo, setWdAccountNo] = useState('');
   const [wdIfsc, setWdIfsc] = useState('');
+
+  // Handle Stripe payment return
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    const paymentAmount = searchParams.get('amount');
+    if (paymentStatus === 'success' && paymentAmount) {
+      const amt = parseFloat(paymentAmount);
+      addFunds(amt, 'Stripe (Card)').then(() => {
+        toast.success(`₹${amt.toLocaleString('en-IN')} added via Stripe!`);
+      });
+      setSearchParams({}, { replace: true });
+    } else if (paymentStatus === 'cancelled') {
+      toast.error('Payment was cancelled');
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
+
+  const handleStripePayment = async () => {
+    if (!amount) return;
+    setProcessing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-wallet-payment', {
+        body: { amount: parseFloat(amount) },
+      });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to initiate payment');
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const handleAddFunds = async () => {
     if (!amount || !selectedMethod) return;
