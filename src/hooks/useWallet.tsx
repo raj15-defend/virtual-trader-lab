@@ -96,13 +96,15 @@ export const useWallet = () => {
       await fetchTransactions();
       
       // Trigger SMS notification (fire-and-forget)
-      supabase.functions.invoke('send-sms', {
-        body: {
-          to: '+919999999999', // placeholder - would be user's phone
-          message: `₹${amount.toLocaleString('en-IN')} added to your TradeSim wallet via ${paymentMethod}. New balance: ₹${newBalance.toLocaleString('en-IN')}`,
-          type: 'deposit',
-        },
-      }).catch(() => {}); // Non-blocking
+      if (profile.phone_number) {
+        supabase.functions.invoke('send-sms', {
+          body: {
+            to: profile.phone_number,
+            message: `₹${amount.toLocaleString('en-IN')} added to your TradeSim wallet via ${paymentMethod}. New balance: ₹${newBalance.toLocaleString('en-IN')}`,
+            type: 'deposit',
+          },
+        }).catch(() => {}); // Non-blocking
+      }
 
       toast.success(`₹${amount.toLocaleString('en-IN')} added successfully!`);
       return { success: true, message: 'Funds added successfully' };

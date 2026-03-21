@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
 import { motion } from 'framer-motion';
-import { Wallet as WalletIcon, Plus, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle, XCircle, CreditCard, Smartphone, Building2, TrendingUp, TrendingDown, IndianRupee, Zap } from 'lucide-react';
+import { Wallet as WalletIcon, Plus, ArrowDownToLine, ArrowUpFromLine, Clock, CheckCircle, XCircle, CreditCard, Smartphone, Building2, TrendingUp, TrendingDown, IndianRupee, Zap, ShieldCheck, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useWallet } from '@/hooks/useWallet';
+import { useOTP } from '@/hooks/useOTP';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -37,23 +40,30 @@ const paymentMethods = [
 ];
 
 const quickAmounts = [500, 1000, 5000, 10000, 25000, 50000];
+const HIGH_VALUE_THRESHOLD = 50000;
 
 export default function Wallet() {
   const { balance, transactions, withdrawals, loading, addFunds, requestWithdrawal } = useWallet();
+  const { profile, user } = useAuth();
+  const { otpSending, otpVerifying, otpSent, otpVerified, sendOTP, verifyOTP, resetOTP } = useOTP();
   const [addMoneyOpen, setAddMoneyOpen] = useState(false);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
   const [amount, setAmount] = useState('');
   const [selectedMethod, setSelectedMethod] = useState('');
   const [processing, setProcessing] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [otpValue, setOtpValue] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
   // Withdrawal form
   const [wdAmount, setWdAmount] = useState('');
   const [wdMethod, setWdMethod] = useState('upi');
   const [wdUpiId, setWdUpiId] = useState('');
   const [wdAccountNo, setWdAccountNo] = useState('');
   const [wdIfsc, setWdIfsc] = useState('');
+  // OTP step for withdrawal
+  const [wdStep, setWdStep] = useState<'form' | 'otp'>('form');
 
-  // Handle Stripe payment return
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
     const paymentAmount = searchParams.get('amount');
@@ -89,28 +99,99 @@ export default function Wallet() {
 
   const handleAddFunds = async () => {
     if (!amount || !selectedMethod) return;
+    const amt = parseFloat(amount);
+
+    // High-value transaction requires OTP
+    if (amt >= HIGH_VALUE_THRESHOLD && !otpVerified) {
+      if (!profile?.phone_number) {
+        setPhoneDialogOpen(true);
+        toast.info('Please add your phone number for OTP verification');
+        return;
+      }
+      if (!otpSent) {
+        await sendOTP();
+        return;
+      }
+      return; // Wait for OTP entry
+    }
+
     setProcessing(true);
     const method = paymentMethods.find(m => m.id === selectedMethod);
-    await addFunds(parseFloat(amount), method?.label || selectedMethod);
+    await addFunds(amt, method?.label || selectedMethod);
     setProcessing(false);
     setAddMoneyOpen(false);
     setAmount('');
     setSelectedMethod('');
+    resetOTP();
   };
 
-  const handleWithdraw = async () => {
+  const handleVerifyAndAdd = async () => {
+    const verified = await verifyOTP(otpValue);
+    if (verified) {
+      setOtpValue('');
+      // Proceed with add funds
+      setProcessing(true);
+      const method = paymentMethods.find(m => m.id === selectedMethod);
+      await addFunds(parseFloat(amount), method?.label || selectedMethod);
+      setProcessing(false);
+      setAddMoneyOpen(false);
+      setAmount('');
+      setSelectedMethod('');
+      resetOTP();
+    }
+  };
+
+  const handleWithdrawStep = async () => {
     if (!wdAmount) return;
-    setProcessing(true);
-    const details = wdMethod === 'upi'
-      ? { upi_id: wdUpiId }
-      : { account_number: wdAccountNo, ifsc: wdIfsc };
-    await requestWithdrawal(parseFloat(wdAmount), wdMethod, details);
-    setProcessing(false);
-    setWithdrawOpen(false);
-    setWdAmount('');
-    setWdUpiId('');
-    setWdAccountNo('');
-    setWdIfsc('');
+    if (!profile?.phone_number) {
+      setPhoneDialogOpen(true);
+      toast.info('Please add your phone number for OTP verification');
+      return;
+    }
+    const sent = await sendOTP();
+    if (sent) {
+      setWdStep('otp');
+    }
+  };
+
+  const handleWithdrawVerify = async () => {
+    const verified = await verifyOTP(otpValue);
+    if (verified) {
+      setProcessing(true);
+      const details = wdMethod === 'upi'
+        ? { upi_id: wdUpiId }
+        : { account_number: wdAccountNo, ifsc: wdIfsc };
+      await requestWithdrawal(parseFloat(wdAmount), wdMethod, details);
+      setProcessing(false);
+      setWithdrawOpen(false);
+      setWdAmount('');
+      setWdUpiId('');
+      setWdAccountNo('');
+      setWdIfsc('');
+      setWdStep('form');
+      setOtpValue('');
+      resetOTP();
+    }
+  };
+
+  const handleSavePhone = async () => {
+    if (!phoneInput || !/^\+\d{10,15}$/.test(phoneInput)) {
+      toast.error('Enter a valid phone number in E.164 format (e.g., +919876543210)');
+      return;
+    }
+    if (!user) return;
+    const { error } = await supabase
+      .from('profiles')
+      .update({ phone_number: phoneInput } as any)
+      .eq('user_id', user.id);
+    if (error) {
+      toast.error('Failed to save phone number');
+    } else {
+      toast.success('Phone number saved!');
+      setPhoneDialogOpen(false);
+      // Refresh profile
+      window.location.reload();
+    }
   };
 
   const deposits = transactions.filter(t => t.type === 'deposit');
@@ -144,6 +225,8 @@ export default function Wallet() {
     return <TrendingDown className="h-4 w-4 text-destructive" />;
   };
 
+  const showOtpForAdd = parseFloat(amount || '0') >= HIGH_VALUE_THRESHOLD && otpSent && !otpVerified;
+
   return (
     <Layout>
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-6 p-4 md:p-6">
@@ -155,6 +238,18 @@ export default function Wallet() {
             </h1>
             <p className="text-sm text-muted-foreground mt-1">Manage your funds, deposits, and withdrawals</p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              setPhoneInput(profile?.phone_number || '');
+              setPhoneDialogOpen(true);
+            }}
+          >
+            <Phone className="h-4 w-4" />
+            {profile?.phone_number ? 'Update Phone' : 'Add Phone'}
+          </Button>
         </motion.div>
 
         {/* Balance Cards */}
@@ -170,7 +265,7 @@ export default function Wallet() {
                 <Button size="sm" onClick={() => setAddMoneyOpen(true)} className="gap-1">
                   <Plus className="h-4 w-4" /> Add Money
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setWithdrawOpen(true)} className="gap-1">
+                <Button size="sm" variant="outline" onClick={() => { setWithdrawOpen(true); setWdStep('form'); resetOTP(); setOtpValue(''); }} className="gap-1">
                   <ArrowUpFromLine className="h-4 w-4" /> Withdraw
                 </Button>
               </div>
@@ -223,7 +318,7 @@ export default function Wallet() {
       </motion.div>
 
       {/* Add Money Dialog */}
-      <Dialog open={addMoneyOpen} onOpenChange={setAddMoneyOpen}>
+      <Dialog open={addMoneyOpen} onOpenChange={(open) => { setAddMoneyOpen(open); if (!open) { resetOTP(); setOtpValue(''); } }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Plus className="h-5 w-5 text-primary" /> Add Money</DialogTitle>
@@ -232,13 +327,7 @@ export default function Wallet() {
           <div className="space-y-4">
             <div>
               <Label>Amount (₹)</Label>
-              <Input
-                type="number"
-                placeholder="Enter amount"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                min={1}
-              />
+              <Input type="number" placeholder="Enter amount" value={amount} onChange={(e) => setAmount(e.target.value)} min={1} />
               <div className="flex flex-wrap gap-2 mt-2">
                 {quickAmounts.map(qa => (
                   <Button key={qa} variant="outline" size="sm" onClick={() => setAmount(String(qa))}>
@@ -246,6 +335,12 @@ export default function Wallet() {
                   </Button>
                 ))}
               </div>
+              {parseFloat(amount || '0') >= HIGH_VALUE_THRESHOLD && (
+                <p className="text-xs text-amber-500 mt-2 flex items-center gap-1">
+                  <ShieldCheck className="h-3 w-3" />
+                  OTP verification required for transactions ≥ ₹{HIGH_VALUE_THRESHOLD.toLocaleString('en-IN')}
+                </p>
+              )}
             </div>
             <div>
               <Label>Payment Method</Label>
@@ -273,83 +368,166 @@ export default function Wallet() {
                 })}
               </div>
             </div>
-            <Button
-              className="w-full"
-              disabled={!amount || !selectedMethod || processing}
-              onClick={handleAddFunds}
-            >
-              {processing ? 'Processing...' : `Add ₹${amount ? parseFloat(amount).toLocaleString('en-IN') : '0'} (Simulated)`}
-            </Button>
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-              <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or pay with</span></div>
-            </div>
-            <Button
-              variant="outline"
-              className="w-full gap-2 border-primary/30 hover:bg-primary/5"
-              disabled={!amount || processing}
-              onClick={handleStripePayment}
-            >
-              <Zap className="h-4 w-4 text-primary" />
-              {processing ? 'Redirecting to Stripe...' : `Pay ₹${amount ? parseFloat(amount).toLocaleString('en-IN') : '0'} with Stripe`}
-            </Button>
+
+            {/* OTP Section for high-value */}
+            {showOtpForAdd && (
+              <div className="space-y-3 p-4 rounded-lg bg-muted/50 border border-primary/20">
+                <Label className="flex items-center gap-2 text-primary">
+                  <ShieldCheck className="h-4 w-4" /> Enter OTP
+                </Label>
+                <p className="text-xs text-muted-foreground">A 6-digit code was sent to your phone</p>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} value={otpValue} onChange={setOtpValue}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+                <Button className="w-full" disabled={otpValue.length !== 6 || otpVerifying} onClick={handleVerifyAndAdd}>
+                  {otpVerifying ? 'Verifying...' : 'Verify & Add Funds'}
+                </Button>
+                <Button variant="ghost" size="sm" className="w-full" disabled={otpSending} onClick={() => sendOTP()}>
+                  Resend OTP
+                </Button>
+              </div>
+            )}
+
+            {!showOtpForAdd && (
+              <>
+                <Button
+                  className="w-full"
+                  disabled={!amount || !selectedMethod || processing || otpSending}
+                  onClick={handleAddFunds}
+                >
+                  {otpSending ? 'Sending OTP...' : processing ? 'Processing...' : `Add ₹${amount ? parseFloat(amount).toLocaleString('en-IN') : '0'} ${parseFloat(amount || '0') >= HIGH_VALUE_THRESHOLD ? '(OTP Required)' : '(Simulated)'}`}
+                </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                  <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">or pay with</span></div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 border-primary/30 hover:bg-primary/5"
+                  disabled={!amount || processing}
+                  onClick={handleStripePayment}
+                >
+                  <Zap className="h-4 w-4 text-primary" />
+                  {processing ? 'Redirecting to Stripe...' : `Pay ₹${amount ? parseFloat(amount).toLocaleString('en-IN') : '0'} with Stripe`}
+                </Button>
+              </>
+            )}
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Withdraw Dialog */}
-      <Dialog open={withdrawOpen} onOpenChange={setWithdrawOpen}>
+      {/* Withdraw Dialog with OTP */}
+      <Dialog open={withdrawOpen} onOpenChange={(open) => { setWithdrawOpen(open); if (!open) { setWdStep('form'); resetOTP(); setOtpValue(''); } }}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><ArrowUpFromLine className="h-5 w-5 text-primary" /> Withdraw Funds</DialogTitle>
-            <DialogDescription>Withdrawals require admin approval</DialogDescription>
+            <DialogDescription>
+              {wdStep === 'form' ? 'All withdrawals require OTP verification and admin approval' : 'Enter the OTP sent to your phone'}
+            </DialogDescription>
+          </DialogHeader>
+
+          {wdStep === 'form' ? (
+            <div className="space-y-4">
+              <div>
+                <Label>Amount (₹)</Label>
+                <Input type="number" placeholder="Enter amount" value={wdAmount} onChange={(e) => setWdAmount(e.target.value)} min={1} max={balance} />
+                <p className="text-xs text-muted-foreground mt-1">Available: ₹{balance.toLocaleString('en-IN')}</p>
+              </div>
+              <div>
+                <Label>Withdrawal Method</Label>
+                <Select value={wdMethod} onValueChange={setWdMethod}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="upi">UPI</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {wdMethod === 'upi' ? (
+                <div>
+                  <Label>UPI ID</Label>
+                  <Input placeholder="name@upi" value={wdUpiId} onChange={(e) => setWdUpiId(e.target.value)} />
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <Label>Account Number</Label>
+                    <Input placeholder="Account number" value={wdAccountNo} onChange={(e) => setWdAccountNo(e.target.value)} />
+                  </div>
+                  <div>
+                    <Label>IFSC Code</Label>
+                    <Input placeholder="IFSC code" value={wdIfsc} onChange={(e) => setWdIfsc(e.target.value)} />
+                  </div>
+                </>
+              )}
+              <Button
+                className="w-full gap-2"
+                disabled={!wdAmount || parseFloat(wdAmount) > balance || otpSending}
+                onClick={handleWithdrawStep}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {otpSending ? 'Sending OTP...' : 'Verify & Submit'}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-muted/50 border border-primary/20 space-y-3">
+                <p className="text-sm text-muted-foreground">Withdrawing <span className="font-bold text-foreground">₹{parseFloat(wdAmount || '0').toLocaleString('en-IN')}</span> via {wdMethod === 'upi' ? 'UPI' : 'Bank Transfer'}</p>
+                <Label className="flex items-center gap-2 text-primary">
+                  <ShieldCheck className="h-4 w-4" /> Enter OTP
+                </Label>
+                <div className="flex justify-center">
+                  <InputOTP maxLength={6} value={otpValue} onChange={setOtpValue}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+              </div>
+              <Button className="w-full" disabled={otpValue.length !== 6 || otpVerifying || processing} onClick={handleWithdrawVerify}>
+                {otpVerifying ? 'Verifying...' : processing ? 'Processing...' : 'Confirm Withdrawal'}
+              </Button>
+              <Button variant="ghost" size="sm" className="w-full" disabled={otpSending} onClick={() => sendOTP()}>
+                Resend OTP
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Phone Number Dialog */}
+      <Dialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Phone className="h-5 w-5 text-primary" /> Phone Number</DialogTitle>
+            <DialogDescription>Add your phone number for OTP verification and SMS alerts</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Amount (₹)</Label>
+              <Label>Phone Number (E.164 format)</Label>
               <Input
-                type="number"
-                placeholder="Enter amount"
-                value={wdAmount}
-                onChange={(e) => setWdAmount(e.target.value)}
-                min={1}
-                max={balance}
+                placeholder="+919876543210"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground mt-1">Available: ₹{balance.toLocaleString('en-IN')}</p>
+              <p className="text-xs text-muted-foreground mt-1">Include country code (e.g., +91 for India)</p>
             </div>
-            <div>
-              <Label>Withdrawal Method</Label>
-              <Select value={wdMethod} onValueChange={setWdMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="upi">UPI</SelectItem>
-                  <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {wdMethod === 'upi' ? (
-              <div>
-                <Label>UPI ID</Label>
-                <Input placeholder="name@upi" value={wdUpiId} onChange={(e) => setWdUpiId(e.target.value)} />
-              </div>
-            ) : (
-              <>
-                <div>
-                  <Label>Account Number</Label>
-                  <Input placeholder="Account number" value={wdAccountNo} onChange={(e) => setWdAccountNo(e.target.value)} />
-                </div>
-                <div>
-                  <Label>IFSC Code</Label>
-                  <Input placeholder="IFSC code" value={wdIfsc} onChange={(e) => setWdIfsc(e.target.value)} />
-                </div>
-              </>
-            )}
-            <Button
-              className="w-full"
-              disabled={!wdAmount || parseFloat(wdAmount) > balance || processing}
-              onClick={handleWithdraw}
-            >
-              {processing ? 'Processing...' : 'Submit Withdrawal Request'}
+            <Button className="w-full" onClick={handleSavePhone} disabled={!phoneInput}>
+              Save Phone Number
             </Button>
           </div>
         </DialogContent>
@@ -416,11 +594,8 @@ function WithdrawalList({ withdrawals, getStatusBadge }: {
               <div className="flex items-center gap-3">
                 <ArrowUpFromLine className="h-4 w-4 text-destructive" />
                 <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Withdrawal via {wd.withdrawal_method === 'upi' ? 'UPI' : 'Bank Transfer'}
-                  </p>
+                  <p className="text-sm font-medium text-foreground">Withdrawal via {wd.withdrawal_method}</p>
                   <p className="text-xs text-muted-foreground">{format(new Date(wd.created_at), 'dd MMM yyyy, HH:mm')}</p>
-                  {wd.admin_notes && <p className="text-xs text-muted-foreground mt-1">Note: {wd.admin_notes}</p>}
                 </div>
               </div>
               <div className="flex items-center gap-3">
