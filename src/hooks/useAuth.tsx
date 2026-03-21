@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 
-interface Profile {
+export interface Profile {
   id: string;
   user_id: string;
   username: string;
   wallet_balance: number;
+  phone_number: string | null;
   created_at: string;
   updated_at: string;
 }
