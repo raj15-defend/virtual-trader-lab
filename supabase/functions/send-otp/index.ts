@@ -101,10 +101,7 @@ serve(async (req) => {
     }
 
     if (action === 'verify') {
-      const { otp } = await req.json().catch(() => ({ otp: undefined }));
-      // Re-read from request body
-      const body = JSON.parse(await new Response(req.body).text().catch(() => '{}'));
-      const otpCode = body.otp || otp;
+      const otpCode = body.otp;
 
       // Get fresh user data
       const { data: { user: freshUser } } = await supabase.auth.admin.getUserById(user.id);
