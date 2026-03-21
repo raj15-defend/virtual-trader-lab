@@ -51,7 +51,8 @@ serve(async (req) => {
       });
     }
 
-    const { action, phone } = await req.json();
+    const body = await req.json();
+    const { action, phone } = body;
 
     if (action === 'send') {
       if (!phone || !/^\+\d{10,15}$/.test(phone)) {
